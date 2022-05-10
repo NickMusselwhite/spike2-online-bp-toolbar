@@ -1,0 +1,192 @@
+'V9 Adds hotkey (numpad *) to open view resizer. Also reduces stat window for better snapshot of animal physiology.
+const etChan := 2, bpChan := 1, textMarkChan :=30, tChan := 5, o2Chan := 3;
+
+'Generated toolbar code
+Var code%[4];
+Var LastT:=0;
+Var Td%[3];
+Const Int%:=15*60; 'interval between stats
+DoToolbar();
+'Try it out
+Halt;
+
+Func DoToolbar()    'Set your own name...
+ToolbarClear();     'Remove any old buttons
+Toolbarset(0, "", Idle%);
+ToolbarSet(1, "Quit|0x6d");    'This button returns its number
+ToolbarSet(3, "STATS!|0x6b", fBP%);   'Link to function
+ToolbarSet(5, "60s", win60%);
+ToolbarSet(6, "5min", win300%);
+ToolbarSet(8, "TB ON|0x78", TB_ON%);
+ToolbarSet(9, "TB OFF|0x79", TB_OFF%);
+ToolbarSet(10, "CANNULA|0x7A", CANNULA_IN%);
+ToolbarSet(11, "WATER|0x7B", WATER_ON%);
+ToolbarSet(13, "SCREEN|0x6a", SCREEN_SET%);
+return Toolbar("Select...", 1023);
+end;
+
+Func Idle%();
+Var time;
+If samplestatus()=2 then
+    'ToolbarText(Print$("Stopwatch %.2f Seconds", Seconds()));
+    'Time:=Nexttime(30, LastT);
+    Time:=Maxtime();
+    If Time > LastT+Int% then
+        FBP%()
+        'seconds(0);
+        'Code%[0]:=4;
+        SampleKey("S");
+        LastT:=LastT+Int%;
+        Speak("Stats!");
+        
+    endif
+else
+'    FileTimeDate(Td%[]);
+    LastT:=0;
+seconds(0);    
+endif    
+Return 1;
+End
+
+Func fBP%()   'Button 2 routine
+'Your code in here...
+var etime, stime, BPMax, BPMin, PP, MAP, BPMax$, BPMin$, PP$, MAP$, HR, HR$, HRC, ET, ET$, RR, RR$, RRC, bpstime, win%,
+TEMP, TEMP$, FIO2, FIO2$, statwindur, bpwindur, PeakFind := 4, EventType := 3, LowestMemChan := 0;
+
+Frontview(SampleHandle(0));
+Win%:=Dup(3);
+'win% := FrontView();'gets selected window
+statwindur := 20;
+bpwindur := 6;
+etime := Maxtime(bpChan);
+stime := etime - statwindur;
+bpstime := etime - bpwindur;
+BPMax := Round(ChanMeasure(bpChan, 8, bpstime, etime));'8 = channel max
+BPMin := Round(ChanMeasure(bpChan, 9, bpstime, etime));'9 = channel min
+PP := BPMax - BPMin;
+MAP := Round((PP / 3) + BPMin);
+'HR
+MeasureX(102,0,bpstime, etime,0);
+HRC:= MeasureToChan(LowestMemChan,"HR",EventType,PeakFind,bpChan,0.2,20,0,0,"",0); 
+'minstep=0.2,lv=PeakSize(20), hw=hysteresis(0), Flags=0 qu=qualification expression?(0) width=0
+HR := Process(bpstime, etime,1,1,HRC); 'Process all the data
+HR := HR * 10; 'not needed using 60 sec
+ChanDelete(HRC);
+'End HR
+'ET & RR & O2?
+if etChan < 0 then
+    ET$ := "NA";
+    RR$ := "NA";
+    FIO2$ := "NA";
+else    
+    ET := Round(ChanMeasure(etChan, 8, stime, etime));
+    FIO2 := Round(ChanMeasure(o2Chan, 8, stime, etime));
+    'ET := ET*7.6;'Convert % to mmHg?;
+    MeasureX(102,0,stime, etime,0);
+    RRC := MeasureToChan(LowestMemChan,"RR",EventType,PeakFind,etChan,0.2,10,0,0,"",0);
+    RR := Process(stime, etime,1,1,RRC);
+    ChanDelete(RRC);
+    RR := RR * 3;
+endif;
+'End ET & RR
+'Temp
+TEMP := ChanMeasure(tChan, 8, bpstime, etime);
+
+'Stringify
+BPMax$ := Str$(BPMax);
+BPMin$ := Str$(BPMin);
+PP$ := Str$(PP);
+MAP$ := Str$(MAP);
+HR$ := Str$(HR);
+ET$ := Str$(ET);
+RR$ := Str$(RR);
+TEMP$ := Str$(TEMP,0,3);
+FIO2$ := Str$(FIO2);
+
+'End Stringify
+PrintLog("\n" + Time$() + "\n");
+PrintLog("Pulse Pressure:   " + PP$ + "\n");
+PrintLog("HR:   " + HR$ + "\n");
+PrintLog("MAP:   " + MAP$ + "\n");
+PrintLog("Systolic:   " + BPMax$ + "\n");
+PrintLog("Diastolic:   " + BPMin$ + "\n");
+PrintLog("ET:   " + ET$ + "\n");
+PrintLog("Temp:   " + TEMP$ + "\n");
+PrintLog("RR:   " + RR$ + "\n");
+PrintLog("O2:   " + FIO2$ + "\n");
+
+ToolbarText(Time$(0,11) + " Pulse Pressure: " + PP$ + "     HR: " + HR$ + "     MAP: " + MAP$ + "     Systolic: " + BPMax$ +"     Diastolic: " + BPMin$ +"     ET: " + ET$ + "     Temp: " + TEMP$+ "     RR: " + RR$+ "     O2: " + FIO2$  +  "\n");
+View(win%).Draw(bpstime, 6);
+Optimise(bpChan);
+return 1;  'This leaves toolbar active
+end;
+
+Func win60%()'60 second window
+var win%;
+win% := FrontView();
+View(win%).XRange(-1,59);
+View(win%).Draw();
+return 1;
+end;
+
+Func win300%()'5 minute window
+var win%;
+win% := FrontView()
+View(win%).XRange(-1,300);
+View(win%).Draw();
+return 1;
+end;
+
+Func win60dlg%()'60 second window
+var win%;
+win% := FrontView();
+View(win%).XRange(-1,59);
+View(win%).Draw();
+return 0;
+end;
+
+Func win300dlg%()'5 minute window
+var win%;
+win% := FrontView()
+View(win%).XRange(-1,300);
+View(win%).Draw();
+return 0;
+end;
+
+Func TB_ON%()
+Code%[0]:=1;
+SampleText("TB On", Maxtime(), Code%[]);
+return 1;
+end;
+
+Func TB_OFF%()
+Code%[0]:=0;
+SampleText("TB Off", Maxtime(), Code%[]);
+return 1;
+end;
+
+Func CANNULA_IN%()
+Code%[0]:=3;
+SampleText("Cannula In The Mouth", Maxtime(), Code%[]);
+return 1;
+end;
+
+Func WATER_ON%()
+Code%[0]:=0;
+SampleText("Water On", Maxtime(), Code%[]);
+return 1;
+end;
+
+Func SCREEN_SET%()
+var sz%[4],buttonPress%, currentView%;
+'View(App(0)).Window(0,0,33.333,98.5,0);
+'currentView% :='why was this like this? added ' to comment out
+DlgCreate("View Adjuster",0,0,0,0,-1,1,1);
+DlgButton(2,"60 Second|0x61",win60dlg%);
+DlgButton(3,"5 Minutes|0x65",win300dlg%);
+buttonPress% := DlgShow();
+'PrintLog(buttonPress%);
+'PrintLog(System(1,1000,sz%));
+'PrintLog(sz%);
+return 1;
+end;
