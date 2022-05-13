@@ -1,4 +1,5 @@
-'V9 Adds hotkey (numpad *) to open view resizer. Also reduces stat window for better snapshot of animal physiology.
+'Version 1.0.0 based of 0.9.0
+'Version 0.9.0 Adds hotkey (numpad *) to open view resizer. Also reduces stat window for better snapshot of animal physiology.
 const etChan := 2, bpChan := 1, textMarkChan :=30, tChan := 5, o2Chan := 3;
 
 'Generated toolbar code
@@ -94,7 +95,7 @@ TEMP := ChanMeasure(tChan, 8, bpstime, etime);
 
 'Stringify
 BPMax$ := Str$(BPMax);
-BPMin$ := Str$(BPMin);
+BPMin$ := Str$(BPMin);d
 PP$ := Str$(PP);
 MAP$ := Str$(MAP);
 HR$ := Str$(HR);
